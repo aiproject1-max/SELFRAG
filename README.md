@@ -38,7 +38,21 @@ $\mathrm{Xu}$
 
 ## 3.1 问题形式化和概述
 
-形式上，给定输入$x$，我们训练$\mathcal{M}$以顺序生成由多个段落$y=[y_{1},\dotsc,y_{T}]$组成的文本输出$y$，其中$y_{t}$表示第$t$个段落的标记序列。$y_{t}$中生成的标记包括原始词汇中的文本以及反思标记（见表1）。
+形式上，给定输入
+$x$
+，我们训练
+$\mathcal{M}$
+以顺序生成由多个段落
+$y=[y_{1},\dotsc,y_{T}]$
+组成的文本输出
+$y$
+，其中
+$y_{t}$
+表示第
+$t$
+个段落的标记序列。
+$y_{t}$
+中生成的标记包括原始词汇中的文本以及反思标记（见表1）。
 
 <html><body><table><tr><td>Type</td><td>Input</td><td>Output</td><td>Definitions</td></tr><tr><td>Retrieve</td><td>x/x,y</td><td>{yes, no, continue}</td><td>Decides when to retrieve with R</td></tr><tr><td>ISREL</td><td>x,d</td><td>{relevant, irrelevant}</td><td>d provides useful information to solve x.</td></tr><tr><td>IsSUP</td><td>x,d,y</td><td>{fully supported, partially supported, no support}</td><td>All of the verification-worthy statement in y is supported by d.</td></tr><tr><td>IsUSE</td><td>,y</td><td>{5,4,3,2,1}</td><td> y is a useful response to x.</td></tr></table></body></html>
 

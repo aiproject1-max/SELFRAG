@@ -1,3 +1,8 @@
+<script type="text/javascript" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+</script>
+
+
 # 自我反思：通过学习检索、生成和批判
 
 Akari Asait, Zeqiu $\mathbf{W_{u}}^{\dagger}$ , Yizhong Wangt\$, Avirup $\mathbf{S}\mathbf{i}\mathbf{l}^{\ddag}$ , Hannaneh Hajishirzi tUniversity of Washington  Allen Institute for AI \*IBM Research AI {akari,zeqiuwu,yizhongw,hannaneh}@cs.washington.edu,avi@us.ibm.com

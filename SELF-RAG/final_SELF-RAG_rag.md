@@ -1,0 +1,275 @@
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/1 INTRODUCTION/section
+本章介绍了自反思检索增强生成(SELF-RAG)框架，旨在提高大型语言模型(LLMs)的生成质量和准确性。相较于传统的检索增强方法，SELF-RAG通过按需检索和自我反思来改善生成过程。该框架训练LM在任务输入时自适应地检索段落，并使用反思标记指导生成和评估段落相关性。实验证明，SELF-RAG在开放域QA、推理和事实验证任务中表现优异，超过了现有LLMs和RAG模型。通过训练和推理过程中的反思标记，SELF-RAG提高了生成质量和事实准确性，展现出在不同任务上的显著性能优势。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/1 INTRODUCTION/section/0/text
+1. SELF-RAG框架如何通过按需检索和自我反思来提高大型语言模型的生成质量和准确性，相较于传统的检索增强方法有何优势？  2. 在SELF-RAG方法中，反思标记是如何指导生成和评估段落相关性的？这种自我评估如何有助于提高生成的事实准确性和质量？  3. SELF-RAG与传统的RAG方法相比，如何在生成过程中更加灵活地处理段落检索、评估相关性和自我评估输出，从而在开放域QA、推理和事实验证任务中表现出显著的性能优势？
+尽管大型语言模型(LLMs)在模型规模和数据规模上取得了进展(Mallen等，2023; Min等，2023)，但仍然存在事实错误的问题。检索增强生成(RAG)方法(见图1左; Lewis等，2020; Guu等，2020)通过检索相关段落来增强LLMs的输入，减少了知识密集型任务中的事实错误。然而，这些方法可能会降低LLMs的多功能性，或引入不必要或离题的段落，导致生成质量较低，因为它们不加区分地检索段落，无论事实依据是否有助于生成。此外，由于模型没有明确训练来利用和遵循提供的段落中的事实，生成的结果不能保证与检索到的相关段落一致。本文介绍了一种名为自反思检索增强生成(SELF-RAG)的方法，通过按需检索和自我反思来提高LLM的生成质量，包括其事实准确性，而不损害其多功能性。我们以端到端的方式训练一个任意的LM，使其能够在给定任务输入时反思自身的生成过程，生成任务输出和间歇性的特殊标记(即反思标记)。反思标记分为检索和评论标记，用于指示检索的必要性和生成质量(见图1右)。具体而言，给定一个输入提示和前面的生成结果，SELF-RAG首先确定是否通过检索段落来帮助继续生成。如果是，它会输出一个检索标记，以在需要时调用一个检索模型(步骤1)。随后，SELF-RAG同时处理多个检索到的段落，评估它们的相关性，然后生成相应的任务输出(步骤2)。然后，它生成评论标记，批评自身的输出，并选择在事实性和整体质量方面最佳的输出(步骤3)。这个过程与传统的RAG方法不同，传统方法会无论是否需要检索，始终检索固定数量的文档进行生成(例如，底部图示例不需要事实知识)，而且不会对生成质量进行二次访问。此外，SELF-RAG为每个段落提供引用，并自我评估输出是否得到段落支持，从而更容易进行事实验证。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/1 INTRODUCTION/section/2/text
+1. SELF-RAG框架如何通过自我反思和按需检索来提高大型语言模型的生成质量和准确性？ 2. 在SELF-RAG中，是如何利用反思标记来指导生成和评估段落相关性的？这种方法相较于传统方法有何优势？ 3. SELF-RAG是如何通过训练LM在生成每个段落后使用评论标记来评估自己的预测，从而提高生成质量和事实准确性的？
+图1：SELF-RAG概述。SELF-RAG学习检索、评论和生成文本段落，以提高整体生成质量、事实性和可验证性。
+
+SELF-RAG训练一个任意的LM，通过将反思标记统一为扩展模型词汇表中的下一个标记预测来生成文本。我们在包含反思标记和检索段落的各种文本集合上训练我们的生成LM。受强化学习中使用奖励模型的启发（Ziegler等，2019; Ouyang等，2022），反思标记由经过训练的评论模型离线插入到原始语料库中。这消除了在训练期间托管评论模型的需要，减少了开销。评论模型在一组由提示专有LM（即GPT-4；OpenAI 2023）引发的输入、输出和相应的反思标记数据集上进行监督训练。虽然我们受到使用控制标记启动和引导文本生成的研究的启发（Lu等，2022; Keskar等，2019），我们训练的LM在生成每个段落后使用评论标记来评估自己的预测，作为生成输出的一个组成部分。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/1 INTRODUCTION/section/3/text
+1. SELF-RAG框架中的自我反思如何帮助提高生成质量和准确性？这种方法相较于传统的检索增强方法有何优势？  2. SELF-RAG如何通过定制化的解码算法来适应不同任务的需求？这种定制化行为如何通过反思标记来实现，并如何影响模型的表现？  3. 在实证结果中，SELF-RAG相较于其他模型在哪些方面表现出明显的优势？反思标记如何在训练和推理过程中帮助提升整体性能？
+SELF-RAG进一步实现了一个可定制的解码算法，以满足由反思标记预测定义的硬约束或软约束。特别是，我们的推理时算法使我们能够（1）灵活调整不同下游应用的检索频率，以及（2）通过利用反思标记，通过使用反思标记概率的加权线性和作为段落分数进行段级束搜索，定制模型的行为以适应用户偏好。
+
+六项任务的实证结果，包括推理和长篇生成，表明SELF-RAG明显优于具有更多参数的预训练和指导调整的LLM，以及具有更高引用准确性的广泛采用的RAG方法。特别是，SELF-RAG在四项任务上优于ChatGPT，对于所有任务，SELF-RAG均优于Llama2-chat（Touvron等，2023）和Alpaca（Dubois等，2023）。我们的分析表明，通过反思标记进行训练和推理可以显著提升整体性能，并且可以在测试时进行模型定制化（例如，在引用准确性和完整性之间平衡权衡）。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/2 RELATED WORK/section
+在“相关工作”章节中，介绍了检索增强生成（RAG）的发展和应用。先前工作在LM微调中使用检索段落指导，但存在运行效率和归因不足的问题。本文提出的SELF-RAG框架通过训练任意LM根据需求自适应检索段落，并使用反思标记指导生成，显著提高了LM的生成质量和归因。与并发工作相比，SELF-RAG实现了按需检索、自反思选择最佳输出，更具适用性和可控性。此外，通过自然语言推理和总结模型的对比，SELF-RAG在推断时不依赖外部模型，提高了模型输出的事实性评估。与RLHF相比，SELF-RAG的反思标记可在推断时进行可控生成，降低了训练成本。相较于其他研究，SELF-RAG使用反思标记自我评估生成质量，并在推断时决定是否需要检索，提高了LM的效率和质量。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/2 RELATED WORK/section/0/text
+1. SELF-RAG框架如何通过训练任意LM根据需求自适应检索段落，以提高生成质量和归因，相较于先前的方法有何优势？  2. SELF-RAG在推断时如何实现不依赖外部模型的自然语言推理，从而提高模型输出的事实性评估？  3. SELF-RAG相较于RLHF等方法，如何通过反思标记实现可控生成，在推断时降低训练成本，同时提高LM的效率和质量？
+检索增强生成。检索增强生成（RAG）通过检索文本段落扩展LM的输入空间（Guu等，2020；Lewis等，2020），在微调后或与现成的LM一起使用时，在知识密集型任务中取得了显著的改进（Ram等，2023）。最近的一项工作（Luo等，2023）通过在输入前置一定数量的检索段落对LM进行指导微调，或者联合预训练检索器和LM，然后在任务数据集上进行少样本微调（Izacard等，2022b）。尽管先前的工作通常在开始时只进行一次检索，但Jiang等（2023）提出了在专有LLM顶部为生成自适应检索段落的方法，或者Schick等（2023）训练一个LM生成用于命名实体的API调用。然而，这些方法的改进任务性能往往是以运行时效率（Mallen等，2023）、对不相关上下文的稳健性（Shi等，2023）和缺乏归因（Liu等，2023a；Gao等，2023）为代价的。我们介绍了一种方法，训练任意的LM根据多样的指令跟随查询的需求学习使用检索，并引入由反思标记指导的受控生成，以进一步提高生成质量和归因。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/2 RELATED WORK/section/1/text
+1. 并发的RAG工作中提出了哪些新的训练或提示策略，以改进RAG方法？这些策略与SELF-RAG框架的按需检索和自反思选择输出有何不同之处？  2. Yoran等人（2023）和Xu等人（2023）在使用自然语言推理模型和总结模型时，如何处理检索到的段落以指导LM生成输出？SELF-RAG如何通过自反思机制处理段落并评估模型输出的质量？  3. LATS（Zhou等，2023）和SELF-RAG在将LM应用于问题回答任务时的方法有何不同？SELF-RAG是如何训练LM学习生成精细的自反思和可定制的推理的？
+并发的RAG工作。关于RAG的一些并发工作提出了新的训练或提示策略，以改进广泛采用的RAG方法。Lin等人（2023）在两个步骤中对检索器和LM在指导微调数据集上进行微调。虽然我们也在多样的指令跟随数据集上训练我们的模型，SELF-RAG实现了按需检索和通过精细的自反思选择最佳模型输出，使其具有广泛的适用性、更加鲁棒和可控。Yoran等人（2023）使用自然语言推理模型，$\mathrm{Xu}$等人（2023）使用总结模型，在将检索到的段落用于提示LM生成输出之前进行过滤或压缩。SELF-RAG并行处理段落，并通过自反思过滤出不相关的段落，在推断时不依赖外部模型。此外，我们的自反思机制还评估模型输出质量的其他方面，包括事实性。LATS（Zhou等，2023）提示现成的LM搜索与问题回答任务相关的信息，并通过LM生成的值分数指导树搜索生成。虽然他们的值函数仅指示每个生成的总体分数，SELF-RAG训练任意的LM学习生成精细的自反思和可定制的推理。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/2 RELATED WORK/section/2/text
+1. SELF-RAG框架如何通过训练任意LM根据需求自适应检索段落，并利用反思标记指导生成，从而提高了LM的生成质量和归因，相较于先前的LM微调方法有何优势？  2. 与RLHF相比，SELF-RAG是如何通过反思标记实现可控生成，在推断时决定是否需要检索，从而降低了训练成本和提高了LM的效率和质量？这种方法相对于其他研究在哪些方面具有独特优势？  3. SELF-RAG如何通过自然语言推理和总结模型的对比，在推断时不依赖外部模型，从而提高了模型输出的事实性评估？相较于其他研究，SELF-RAG如何利用反思标记进行自我评估生成质量，并决定是否需要检索，从而进一步提高了LM的效率和质量？
+使用评论家进行训练和生成。使用强化学习（例如，Proximal Policy Optimization或PPO；Schulman等人，2017）从人类反馈（RLHF）中训练LLM已被证明可以有效地使LLM与人类偏好保持一致（Ouyang等人，2022）。Wu等人（2023）引入了具有多个奖励模型的细粒度RLHF。虽然我们的工作也研究了对检索和生成的细粒度批评，但我们在任务示例上训练目标LM，并使用来自评论家模型的反思标记，与RLHF相比，训练成本大大降低。此外，SELF-RAG中的反思标记使得在推断时可以进行可控生成，而RLHF在训练过程中专注于与人类偏好的一致性。其他研究使用通用控制标记来指导LM生成（Lu等人，2022；Korbak等人，2023），而SELF-RAG使用反思标记来决定是否需要检索并自我评估生成质量。Xie等人（2023）提出了一个自我评估引导的解码框架，但他们仅关注具有一个评估维度（推理路径一致性）且没有检索的推理任务。关于LLM精炼的最新工作（Dhuliawala等人，2023；Madaan等人，2023；Paul等人，2023）促使模型迭代生成任务输出、自然语言反馈和精炼的任务输出，但牺牲了推断效率。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/section
+在“自我批判：学习检索、生成和评论”章节中，介绍了自反思检索增强生成(SELF-RAG)框架，旨在提高大型语言模型(LLMs)的质量和准确性。通过训练LM在需要时自适应地检索段落，并使用反思标记来生成和反思这些段落，使LM在推理阶段可控，能够根据不同任务需求调整其行为。SELF-RAG在开放域QA、推理和事实验证任务上明显优于最先进的LLMs和检索增强模型，尤其在长篇生成的准确性和引用准确性方面表现出显著增益。通过这一框架，LM能够更有效地利用检索知识，提高响应生成的多功能性和准确性。SELF-RAG的自我调整训练和自我推断方法为LM的发展提供了新的思路和解决方案，为未来研究方向和方法提供了有益的启示。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/section/0/text
+1. SELF-RAG框架如何通过检索和自我反思来提高大型语言模型的质量和事实性，同时又保持其原始创造力和多功能性？  2. 在推理阶段，SELF-RAG框架如何实现LM的可控性，使其能够根据不同任务需求灵活调整行为，从而在开放域QA、推理和事实验证任务中表现优异？  3. SELF-RAG相较于常见的RAG方法有哪些优势，尤其在长篇生成的准确性和引用准确性方面表现出显著增益？
+我们介绍了自反思检索增强生成（SELF-RAG），如图1所示。SELF-RAG是一个框架，通过检索和自我反思来提高LLM的质量和事实性，同时不影响LLM的原始创造力和多功能性。我们的端到端训练使得一个LM $\mathcal{M}$ 能够根据需要生成文本，并通过学习生成特殊标记来对输出进行批判。这些反思标记（见表1）表明是否需要检索或确认输出的相关性、支持性或完整性。相比之下，常见的RAG方法会不加区分地检索段落，而不确保引用来源的完全支持。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.1 PROBLEM FORMALIZATION AND OVERVIEW/section
+在问题形式化和概述章节中，我们介绍了自反思检索增强生成(SELF-RAG)框架，旨在提高大型语言模型(LLMs)的质量和准确性。该框架通过训练一个LM，在需要时自适应地检索段落，并使用反思标记来生成和反思这些段落。这种生成反思标记的方法使LM在推理阶段可控，可以根据不同任务需求调整其行为。实验证明，SELF-RAG在开放域QA、推理和事实验证任务上明显优于最先进的LLMs和检索增强模型，特别在改善长篇生成的准确性和引用准确性方面表现出显著的增益。通过这一框架，LM能够更有效地利用检索知识，提高响应生成的多功能性和准确性。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.1 PROBLEM FORMALIZATION AND OVERVIEW/section/0/text
+1. SELF-RAG框架如何通过训练LM来自适应地检索段落，并使用反思标记来提高LM在推理阶段的可控性和多功能性？  2. 在开放域QA、推理和事实验证任务中，SELF-RAG相较于最先进的LLMs和检索增强模型，具有哪些显著的优势和增益表现？  3. 如何利用SELF-RAG框架使LM更有效地利用检索知识，从而提高生成文本的准确性和引用准确性？
+形式上，给定输入$x$，我们训练$\mathcal{M}$以顺序生成由多个段落$y=[y_{1},\dotsc,y_{T}]$组成的文本输出$y$，其中$y_{t}$表示第$t$个段落的标记序列。$y_{t}$中生成的标记包括原始词汇中的文本以及反思标记（见表1）。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.1 PROBLEM FORMALIZATION AND OVERVIEW/section/1/table
+1. SELF-RAG框架中使用的四种反思标记类型分别是什么？这些标记如何帮助LM在推理阶段更加可控和适应不同任务需求？  2. 在SELF-RAG框架中，为什么实验结果表明它在开放域QA、推理和事实验证任务上明显优于最先进的LLMs和检索增强模型？这种优势主要体现在哪些方面？
+表1：SELF-RAG中使用的四种反思标记类型。每种类型使用多个标记来表示其输出值。底部的三行是三种批评标记类型，粗体文本表示最理想的批评标记。$x,y,d$表示输入、输出和相关段落，分别。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.2 SELF-RAG TRAINING/section
+本章介绍了自我调整训练(SELF-RAG)框架，旨在提高语言模型(LM)的质量和准确性。首先，通过训练评论者模型$\mathcal{C}$，利用GPT-4生成反思标记，有效收集了$4k$至$20k$个受监督训练数据，为LM提供有效支持。其次，训练生成器模型$\mathcal{M}$，通过检索和评论模型扩充原始输出，模拟SELF-RAG推理过程，学习预测目标输出和反思标记，实现软重排序机制或硬约束。SELF-RAG在开放域QA、推理和事实验证任务中表现优异，相较于传统模型，在长篇生成准确性和引用准确性方面取得显著增益。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.2 SELF-RAG TRAINING/section/0/text
+1. SELF-RAG框架中的评论者模型$\mathcal{C$如何通过生成反思标记来有效收集受监督训练数据，为语言模型提供支持？  2. 生成器模型$\mathcal{M}$是如何模拟SELF-RAG推理过程，学习预测目标输出和反思标记，并实现软重排序机制或硬约束的？  3. SELF-RAG相较于传统模型，在长篇生成准确性和引用准确性方面是如何取得显著增益的？
+在这里，我们描述了两个模型的监督数据收集和训练，即评论者$\mathcal{C}$（第3.2.1节）和生成器$\mathcal{M}$（第3.2.2节）。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.2 SELF-RAG TRAINING/3.2.1 TRAINING THE CRITIC MODEL/section
+本节介绍了训练评论模型的方法。为了避免昂贵的手动标记，研究利用先进的LLM，如GPT-4，生成反思标记，并将其提炼为内部数据。通过为不同类型的反思标记提供特定指导提示，如“根据指令，判断从网络中找到一些外部文档是否有助于生成更好的响应”，研究有效地收集了$4k$至$20k$个受监督训练数据。随后，利用这些数据进行评论家学习，最大化反思标记的条件概率。实验结果表明，评论家在大多数反思标记类别上与基于GPT-4的预测具有超过90%的一致性，为SELF-RAG框架的性能提升提供了有效支持。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.2 SELF-RAG TRAINING/3.2.1 TRAINING THE CRITIC MODEL/section/0/text
+1. 如何利用先进的LLM生成反思标记，并将其提炼为内部数据，以实现评论模型的训练数据收集？这种方法相比于手动标记有哪些优势和局限性？  2. 在批判模型的数据收集过程中，如何通过为不同类型的反思标记提供特定指导提示来有效收集$4k$至$20k$个受监督训练数据？这种方法如何影响评论家学习的性能提升？  3. 在评论模型的训练过程中，如何利用GPT-4生成的反思标记来最大化条件概率，以提高评论家在不同反思标记类别上的一致性？这种方法对SELF-RAG框架的性能提升有何有效支持？
+批判模型的数据收集。为每个段落手动注释反思标记是昂贵的(Wu等，2023)。像GPT-4（OpenAI，2023）这样的最先进的LLM可以有效用于生成这种反馈(Liu等，2023b)。然而，依赖这些专有的LLM可能会增加API成本并降低可重现性(Chen等，2023)。我们通过提示GPT-4生成反思标记，然后将它们的知识提炼为内部$\mathcal{C}$，来创建受监督的数据。对于每组反思标记，我们从原始训练数据中随机抽取实例：$\{X^{sample},Y^{sample}\}\sim\{X,Y\}$。由于不同的反思标记组有其自己的定义和输入，如表1所示，我们为它们使用不同的指导提示。这里，我们以Retrieve为例。我们用一个类型特定的指导提示（“根据指令，判断从网络中找到一些外部文档是否有助于生成更好的响应。”）来提示GPT-4，然后提供少量示范$I$原始任务的输入$x$和输出$y$，以预测适当的反思标记作为文本：$p(r|I,x,y)$。手动评估显示，GPT-4的反思标记预测与人工评估具有很高的一致性。我们为每种类型收集$4k$至$20k$个受监督训练数据，并将它们组合成$\mathcal{C}$的训练数据。附录第D节显示了指导提示的完整列表，A.1包含更多细节和我们的分析。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.2 SELF-RAG TRAINING/3.2.1 TRAINING THE CRITIC MODEL/section/1/figure
+1. 在SELF-RAG框架中，如何通过利用GPT-4生成的反思标记来有效地收集受监督训练数据？     2. 在实验结果中，评论家在大多数反思标记类别上与基于GPT-4的预测具有超过90%的一致性，这种结果对于SELF-RAG框架的性能提升有何意义？
+图2：SELF-RAG训练示例。左侧示例不需要检索，而右侧示例需要检索；因此，插入了段落。附录表4中有更多示例。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.2 SELF-RAG TRAINING/3.2.1 TRAINING THE CRITIC MODEL/section/2/text
+1. 评论家学习中如何利用预训练的语言模型和训练数据$\mathcal{D}_{critic}$进行训练，以最大化条件概率？  2. 在评论家学习中，如何通过最大化反思标记的条件概率来提高SELF-RAG框架的性能？  3. 评论家在大多数反思标记类别上与基于GPT-4的预测具有超过90%的一致性，这种一致性对于评估评论家学习的有效性有何意义？
+评论家学习。在我们收集训练数据$\mathcal{D}_{critic}$之后，我们使用预训练的语言模型初始化$\mathcal{C}$，并在$\mathcal{D}_{critic}$上进行训练，使用标准的条件语言建模目标，最大化可能性：
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.2 SELF-RAG TRAINING/3.2.1 TRAINING THE CRITIC MODEL/section/3/formula
+$$ 
+\operatorname*{max}_{\mathcal{C}}\mathbb{E}_{((x,y),r)\sim\mathcal{D}_{c r i t i c}}\log p_{\mathcal{C}}(r|x,y),\ r\ \mathrm{for~reflection~tokens}.
+ $$
+这个公式的目的是最大化条件语言建模的可能性，其中$\mathcal{C}$代表评论家模型，$(x,y)$是输入文本和参考文本，$r$是反思标记。公式中的$p_{\mathcal{C}}(r|x,y)$表示在给定输入文本$x$和参考文本$y$的情况下，评论家模型$\mathcal{C}$预测反思标记$r$的条件概率。通过最大化这个条件概率的期望，评论家模型可以在训练数据$\mathcal{D}_{critic}$上进行训练，以提高其预测的准确性。在论文中，这个公式用于评论家学习，通过最大化反思标记的条件概率，提高评论家模型的性能，使其与基于GPT-4的预测达成超过90%的一致性。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.2 SELF-RAG TRAINING/3.2.1 TRAINING THE CRITIC MODEL/section/4/text
+1. 为什么在训练评论模型时选择使用与生成器语言模型相同的模型来初始化评论家$\mathcal{C}$，而不是其他预训练语言模型呢？  2. 如何解释评论家在大多数反思标记类别上与基于GPT-4的预测达成超过90%一致性的结果？这种一致性对于评论模型的性能提升有何意义？  3. 在研究中提到的将反思标记提炼为内部数据的方法有哪些优势和局限性？如何确保这种数据处理方法的有效性和可靠性？
+尽管初始模型可以是任何预训练语言模型，但我们使用与生成器语言模型相同的模型（即Llama 2-7B；Touvron等，2023年）来初始化$\mathcal{C}$。评论家在大多数反思标记类别上与基于GPT-4的预测达成超过90%的一致性（附录表5）。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.2 SELF-RAG TRAINING/3.2.2 TRAINING THE GENERATOR MODEL/section
+本节介绍了训练生成模型的过程。首先，通过检索和评论模型对原始输出进行扩充，创建监督数据以模拟SELF-RAG推理过程。对每个输出片段，评估是否需要额外段落，添加检索特殊标记并检索相关段落。评论模型进一步评估段落相关性和支持程度，并添加评论标记。生成器模型通过学习预测目标输出和反思标记来训练，屏蔽检索文本块进行损失计算。与先前批评学习工作不同，我们离线计算批评并直接插入训练语料库，降低训练成本。SELF-RAG学习生成特殊标记，实现推断时的软重排序机制或硬约束。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.2 SELF-RAG TRAINING/3.2.2 TRAINING THE GENERATOR MODEL/section/0/text
+1. 生成器的数据收集过程中如何使用检索和评论模型扩充原始输出，以模拟SELF-RAG推理过程？   2. SELF-RAG学习中的生成器模型是如何通过学习预测目标输出和反思标记来训练的？   3. 相较于先前的批评学习工作，本文提出的方法在训练成本上有何优势？
+生成器的数据收集。给定一个输入-输出对$(x,y)$，我们使用检索和评论模型扩充原始输出$y$，以创建监督数据，精确模拟SELF-RAG推理过程（第3.1节）。对于每个片段$y_{t}\in y$，我们运行$\mathcal{C}$来评估是否需要额外的段落来增强生成。如果需要检索，则添加检索特殊标记$\boxed{\mathrm{Retrieve}}=\mathrm{Y}\in\mathrm{\sfS}$，然后$\mathcal{R}$检索前$K$个段落$\mathbf{D}$。对于每个段落，$\mathcal{C}$进一步评估该段落是否相关，并预测$\boxed{\mathrm{IsREL}}$。如果段落是相关的，$\mathcal{C}$进一步评估该段落是否支持模型生成，并预测$\boxed{\mathrm{IsSUP}}$。评论标记$\boxed{\mathrm{IsREL}}$和$\boxed{\mathbf{IsSUP}}$被附加在检索到的段落或生成之后。在输出的末尾$y$（或$y_{T}$），$\mathcal{C}$预测整体效用标记$\boxed{\mathrm{IsUse}}$，并将带有反思标记和原始输入对的增强输出添加到$\mathcal{D}_{gen}$。请参见图2中的示例训练数据。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.2 SELF-RAG TRAINING/3.2.2 TRAINING THE GENERATOR MODEL/section/1/text
+1. 生成器模型如何在训练过程中利用反思标记来增强筛选语料，并学习预测目标输出？ 2. 与先前批评学习工作相比，本文提出的训练方法有何优势，特别是在降低训练成本方面有何贡献？ 3. SELF-RAG学习中的特殊标记如何帮助实现推断时的软重排序机制或硬约束？
+生成器学习。我们通过使用标准的下一个标记目标，在经过反思标记$\mathcal{D}_{gen}$增强的筛选语料上训练生成器模型$\mathcal{M}$。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.2 SELF-RAG TRAINING/3.2.2 TRAINING THE GENERATOR MODEL/section/2/formula
+$$ 
+\operatorname*{max}_{\mathcal{M}}\mathbb{E}_{(x,y,r)\sim\mathcal{D}_{g e n}}\log p_{\mathcal{M}}(y,r|x).
+ $$
+该公式的目的是通过最大化期望值来训练生成器模型$\mathcal{M}$。其中，$(x,y,r)\sim\mathcal{D}_{gen}$表示从经过反思标记$\mathcal{D}_{gen}$增强的筛选语料中采样得到的输入$x$、目标输出$y$和反思标记$r$的样本。公式中的$p_{\mathcal{M}}(y,r|x)$表示生成器模型$\mathcal{M}$对给定输入$x$，目标输出$y$和反思标记$r$的条件概率。  在论文中，这个公式的作用是用于训练生成器模型$\mathcal{M}$，通过最大化期望值来优化模型参数，以使模型能够更好地预测目标输出$y$和反思标记$r$的条件概率。这个公式在训练生成器模型的过程中起着关键作用，帮助模型学习如何根据输入$x$生成相应的输出$y$和反思标记$r$。  在公式中，$\mathcal{M}$代表生成器模型，$(x,y,r)$代表输入、目标输出和反思标记的样本，$\mathcal{D}_{gen}$代表经过反思标记增强的筛选语料。通过最大化公式中的期望值，模型可以学习如何更好地生成目标输出和反思标记，从而提高生成模型的性能。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.2 SELF-RAG TRAINING/3.2.2 TRAINING THE GENERATOR MODEL/section/3/text
+1. 与传统的批评学习方法相比，本文提出的训练方法如何在降低成本的同时实现了模型的有效训练？  2. 作者提到了与PPO相比的训练成本降低，这种降低成本的方法如何影响了模型的学习效率和性能表现？  3. 在SELF-RAG中，特殊标记的引入如何帮助模型在推断时实现软重排序机制或硬约束，进而提高生成结果的质量和准确性？
+不同于$\mathcal{C}$训练（方程1），$\mathcal{M}$学习预测目标输出以及反思标记。在训练过程中，我们会屏蔽检索到的文本块（如图2中由$\mathrm{<p>}$和${<}/{_{\mathrm{p}}}{>}$包围的部分）进行损失计算，并通过一组反思标记$\{[\overline{{\mathbf{Critique}}}],\boxed{\mathrm{Retrieve}}\}$扩展原始词汇$\nu$。
+
+与先前关于带有批评学习的工作的联系。最近的研究在训练过程中引入了额外的批评（反馈），例如，RLHF（Ouyang等人，2022）通过PPO。虽然PPO在训练过程中依赖于单独的奖励模型，我们却离线计算批评并直接将其插入训练语料库中，其中生成器LM使用标准LM目标进行训练。与PPO相比，这显著降低了训练成本。我们的工作还与先前将特殊标记纳入生成控制的工作相关（Keskar等人，2019；Lu等人，2022；Korbak等人，2023）。我们的SELF-RAG在生成每个片段后学习生成特殊标记，从而实现在推断时使用软重排序机制或硬约束（下文讨论）。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.3 SELF-RAG INFERENCE/section
+在自我推断章节中，提出了自反思检索增强生成(SELF-RAG)框架，旨在通过生成反思标记来自我评估输出，使LM在推理阶段可控。该框架通过自适应检索与阈值动态确定何时检索文本段落，并引入带有评论标记的树解码，以处理段落级别的束搜索。评论标记类型的线性加权和用于更新段落分数，以调整模型行为以适应不同任务需求。SELF-RAG在各种任务上表现优异，特别是在开放域QA、推理和事实验证任务中相较于其他模型显示出显著增益，为LM的质量和准确性带来显著提升。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.3 SELF-RAG INFERENCE/section/0/text
+1. SELF-RAG框架如何通过生成反思标记来自我评估输出，以使LM在推理阶段可控？ 2. 在不同任务需求下，SELF-RAG如何通过自适应检索和阈值动态确定何时检索文本段落，以调整模型行为？ 3. 在开放域QA和事实验证任务中，SELF-RAG相较于其他模型表现出哪些显著增益，如何为LM的质量和准确性带来提升？
+生成反思标记以自我评估其输出，使得SELF-RAG在推理阶段可控，使其能够根据不同的任务需求调整其行为。对于需要事实准确性的任务（Min等，2023），我们的目标是模型更频繁地检索段落，以确保输出与现有证据紧密对齐。相反，在更开放式的任务中，比如撰写个人经历文章，重点转向减少检索并优先考虑整体创造性或实用性评分。在本节中，我们描述了在推理过程中采取的方法，以实现这些不同目标的控制。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.3 SELF-RAG INFERENCE/section/1/text
+1. SELF-RAG框架如何通过预测Retrieve来动态决定何时检索文本段落，并如何设置阈值以触发检索？  2. 在带有评论标记的树解码中，如何通过线性加权和来更新每个段落的分数，以调整模型行为以适应不同任务需求？  3. SELF-RAG框架中的段落级束搜索是如何进行的，以确保在生成结束时返回最佳序列？
+自适应检索与阈值。SELF-RAG通过预测Retrieve来动态决定何时检索文本段落。另外，我们的框架允许设置一个阈值。具体来说，如果在Retrievenormalized后生成的概率超过指定阈值，我们会触发检索（详细信息见附录A.3节）。
+
+带有评论标记的树解码。在每个段落步骤$t$中，当需要检索时，基于硬性或软性条件，$\mathcal{R}$检索$K$个段落，生成器$\mathcal{M}$并行处理每个段落，并输出$K$个不同的延续候选。我们进行段落级别的束搜索（束大小为$B$），以获取每个时间戳$t$处的前$B$个段落延续，并在生成结束时返回最佳序列。每个段落$y_{t}$相对于段落$d$的分数通过评论者分数$s$进行更新，该分数是每个评论标记类型的归一化概率的线性加权和。对于每个评论标记组$G$（例如，sREL），我们将其在时间戳$t$处的分数表示为$\overline{{s_{t}^{G}}}$，并计算段落分数如下：
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.3 SELF-RAG INFERENCE/section/2/formula
+$$ 
+f(y_{t},d,\mathrm{[}\mathrm{Critique}])=p(y_{t}|x,d,y_{<t}))+S(\mathrm{[}\mathrm{Critique}\mathbf{]}),\mathrm{where}
+ $$
+该公式用于计算每个段落$y_{t}$相对于段落$d$的分数，其中包括了评论者分数$s$的影响。公式中的$p(y_{t}|x,d,y_{<t})$表示生成器$\mathcal{M}$在给定输入$x$、目标段落$d$和之前生成的段落$y_{<t}$的情况下，生成当前段落$y_{t}$的概率。$S([\text{Critique}])$代表评论标记的影响，通过评论标记类型的归一化概率的线性加权和来计算。具体来说，$s_{t}^{G}$表示对于评论标记类型$G$，最理想的反馈标记$\hat{r}$的生成概率，其中$N^{G}$表示不同标记的数量。公式中的权重$w^{G}$是超参数，在推断时可以进行调整，以实现自定义行为。这个公式的设计旨在根据不同评论标记类型的影响，调整每个段落的分数，以适应不同任务需求。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.3 SELF-RAG INFERENCE/section/3/formula
+$$ 
+\displaystyle\mathcal{S}([\mathrm{Critique}])=\sum_{G\in\mathcal{G}}w^{G}s_{t}^{G}\mathrm{for}\mathcal{G}=\left\{\frac{[\mathrm{IsREL}],[\mathrm{IsSUP}]}{[\mathrm{IsReL}]},\frac{[\mathrm{IsUsE}]}{[\mathrm{IsUsE}]}\right\},
+ $$
+这个公式用于计算段落分数，其中包含了评论标记类型的线性加权和。具体而言，公式中的符号含义如下：$\mathcal{S}([\mathrm{Critique}])$表示评论标记的分数，$G$表示评论标记组的集合，$w^{G}$是评论标记类型$G$的权重，$s_{t}^{G}$是评论标记类型$G$在时间戳$t$处的分数。公式中的计算基于每个评论标记类型$G$的归一化概率的线性加权和。在论文中，这个公式的作用是调整模型的行为以适应不同任务需求，通过评论标记的分数来更新段落分数，从而影响模型在推理阶段的输出。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/3 SELF-RAG: LEARNING TO RETRIEVE, GENERATE AND CRITIQUE/3.3 SELF-RAG INFERENCE/section/4/text
+1. 如何通过公式中的权重$w^{G}$来调整模型在推断阶段的行为，以满足不同任务需求？  2. SELF-RAG框架如何利用评论标记类型的线性加权来更新段落分数，以提升LM在推理阶段的可控性和准确性？  3. 在推断过程中，如何利用$\boxed{\mathbf{IsSUP}$和$\boxed{\mathrm{Critique}}$来强制执行硬性约束，以确保模型生成的结果受到证据支持并过滤掉不良的评论标记？
+其中，$\begin{array}{r}{s_{t}^{G}=\frac{p_{t}(\hat{r})}{\sum_{i=1}^{N^{G}}p_{t}(r_{i})}}\end{array}$代表了对于评论标记类型$G$，最理想的反馈标记$\hat{r}$（例如，$\scriptstyle\left[{\mathrm{~IsREL}}\right]=\mathrm{Re1evant}$）的生成概率，其中$N^{G}$表示不同标记的数量（代表$G$的不同可能取值）。公式4中的权重$w^{G}$是超参数，在推断时可以进行调整，以在测试时实现自定义行为。例如，为了确保结果$y$主要由证据支持，我们可以为$\boxed{\mathbf{IsSUP}}$的得分设置更高的权重项，同时相对降低其他方面的权重。另外，我们可以在解码过程中进一步使用$\boxed{\mathrm{Critique}}$来强制执行硬性约束。在公式4中，我们可以不使用软奖励函数，而是在模型生成不良的评论标记时明确过滤掉段落延续。在这种情况下，平衡多种偏好之间的权衡已在RLHF（Touvron等，2023；Wu等，2023）中进行了研究，通常需要训练来改变模型的行为。SELF-RAG定制了一个LM，无需额外训练。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/Algorithm 1 SELF-RAG Inference/section
+本章介绍了自回归生成器推断算法1，即SELF-RAG框架。该框架旨在提高语言模型的质量和准确性，通过检索和自我反思来调整模型行为。在推理过程中，模型根据需要生成检索标记，评估检索效果。如果需要检索，模型生成评论标记来评价检索到的段落相关性，并预测下一个响应片段及其相关性。在训练阶段，模型通过预测反思标记来调整LM的生成，以提高模型在不同任务上的表现。实验证明，SELF-RAG在各种任务上明显优于其他模型，特别在开放域QA、推理和事实验证任务上表现出色，提高了长篇生成的准确性和引用准确性。通过并行处理多个段落和使用反思标记，SELF-RAG实现了对生成任务输出的软约束或硬控制，从而取得了显著的增益。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/Algorithm 1 SELF-RAG Inference/section/0/text
+1. SELF-RAG框架是如何通过检索和自我反思来调整语言模型的行为，以提高模型在不同任务上的表现？  2. 在SELF-RAG框架中，模型是如何根据检索结果生成评论标记来评价检索到的段落相关性，并预测下一个响应片段及其相关性的？  3. SELF-RAG框架是如何通过并行处理多个段落和使用反思标记来实现对生成任务输出的软约束或硬控制，从而取得显著的增益？
+输入：生成器LM $\mathcal{M}$，检索器 $\mathcal{R}$，大规模段落集合 $\{d_{1},\ldots,d_{N}\}$
+1: 输入：输入提示 $x$ 和前面生成的 $y_{<t}$，输出：下一个输出片段 $y_{t}$
+2: $\mathcal{M}$ 预测给定 $(x,y_{<t})$ 的检索
+3: 如果 $\boxed{\mathrm{Retrieve}}\ ==\mathrm{Yes}$，则
+4: 使用 $\mathcal{R}$ 根据 $(x,y_{t-1})$ 检索相关文本段 $\mathbf{D}$ 检索
+5: $\mathcal{M}$ 针对每个 $d\in\mathbf{D}$ 预测给定 $x,d$ 和 $y_{t}$ 给定 $x,d,y_{<t}$ 的 IsREL 生成
+6: $\mathcal{M}$ 针对每个 $d\in\mathbf{D}$ 预测给定 $x$，$y_{t}$，$d$ 的 $\boxed{\mathbf{IsSUP}}$ 和 $\boxed{\mathbf{IsUsE}$ 评论
+7: 基于 $\boxed{\mathrm{IsREL}}$，SSUP，ISUSE 根据第3.3节详细说明对 $y_{t}$ 进行排名
+8: 否则，如果 $\boxed{\mathrm{Retrieve}}\ ==\mathrm{No}$，则
+9: $\mathcal{M}_{g e n}$ 针对给定 $x$ 预测 $y_{t}$ 生成
+10: $\mathcal{M}_{g e n}$ 针对给定 $x,y_{t}$ 预测 ISUSE 评论
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/Algorithm 1 SELF-RAG Inference/section/1/text
+1. SELF-RAG框架如何通过检索和自我反思来调整模型行为，以提高语言模型在推理过程中的表现质量和准确性？  2. 在训练阶段，SELF-RAG是如何通过预测反思标记来调整LM的生成，以提高模型在不同任务上的性能表现的？  3. SELF-RAG是如何通过并行处理多个段落和使用反思标记来实现对生成任务输出的软约束或硬控制，从而取得显著的增益的？
+推理概述。图1和算法1展示了SELF-RAG在推理过程中的概述。对于每个$x$和前面生成的$y_{<t}$，模型解码一个检索标记以评估检索的效用。如果不需要检索，则模型预测下一个输出片段，就像标准LM中那样。如果需要检索，模型会生成：一个评论标记来评估检索到的段落的相关性，下一个响应片段，以及一个评论标记来评估响应片段中的信息是否受到段落支持。最后，一个新的评论标记评估响应的整体效用。为了生成每个片段，SELF-RAG并行处理多个段落，并使用其自己生成的反思标记来施加软约束（第3.3节）或硬控制（算法1）在生成的任务输出上。例如，在图1（右侧），检索到的段落$d_{1}$在第一个时间步被选择，因为$d_{2}$没有提供直接证据（[IsREL是不相关的），$d_{3}$的输出只有部分支持，而$d_{1}$则完全得到支持。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/Algorithm 1 SELF-RAG Inference/section/2/text
+1. SELF-RAG框架如何通过统一下一个标记预测来训练任意LM，从而实现对生成任务输出的软约束或硬控制？  2. 在SELF-RAG框架中，是如何利用检索器和评论模型生成反思标记，并通过插入任务输出来更新训练语料库的？  3. SELF-RAG是如何在训练阶段通过传统的LM目标来训练最终的生成模型，使其能够在推理时自行生成反思标记而不依赖评论者的？
+训练概述。SELF-RAG通过将它们统一为扩展模型词汇表中的下一个标记预测（即原始词汇表加上反思标记）使任意LM能够生成带有反思标记的文本。具体而言，我们使用由检索器$\mathcal{R}$检索到的交错段落和评论模型$\mathcal{C}$预测的反思标记对生成模型$\mathcal{M}$进行训练（在附录算法2中总结）。我们训练$\mathcal{C}$生成用于评估检索段落和给定任务输出质量的反思标记（第3.2.1节）。利用评论模型，我们通过离线将反思标记插入任务输出来更新训练语料库。随后，我们使用传统的LM目标（第3.2.2节）训练最终的生成模型$(\mathcal{M})$，使$\mathcal{M}$能够在推理时自行生成反思标记，而无需依赖评论者。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/4 EXPERIMENTS/section
+在第四章"实验"中，我们评估了自反思检索增强生成(SELF-RAG)框架在多个任务上的表现，包括封闭集任务、短文生成任务和长篇生成任务。通过与基线模型的比较，包括预训练LLM和检索增强模型，我们展示了SELF-RAG在各项任务中的显著优势。实验证明，SELF-RAG相较于最先进的LLMs和检索增强模型，在开放域QA、推理和事实验证等任务上表现更优，尤其在长篇生成的准确性和引文准确性方面取得显著增益。通过合理的实验设置和任务设计，SELF-RAG框架在不同任务中呈现出了强大的性能，为提高语言模型生成质量和准确性提供了重要的方法和实证支持。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/4 EXPERIMENTS/4.1 TASKS AND DATASETS/section
+本节评估了SELF-RAG框架和各种基线模型在多个下游任务上的表现，包括封闭集任务和短文生成任务。封闭集任务涵盖公共卫生事实验证数据集和多项选择推理数据集，使用准确率作为评估指标。而短文生成任务包括开放域问答数据集，要求系统回答关于事实知识的问题。此外，长篇生成任务涉及传记生成和长篇问答任务，使用FactScore评估传记生成，以及正确性指标、流畅性评估和引文精度来评估长篇问答任务的性能。通过这些实验，SELF-RAG在各项任务中均展现出明显优势，相较于最先进的LLMs和检索增强模型，特别在长篇生成的准确性和引文准确性方面获得显著增益。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/4 EXPERIMENTS/4.1 TASKS AND DATASETS/section/0/text
+1. SELF-RAG框架在短文生成任务中如何通过回答关于事实知识的问题展现出优势，相比于其他基线模型的表现如何？  2. 在长篇生成任务中，SELF-RAG相较于最先进的LLMs和检索增强模型，是如何在准确性和引文准确性方面获得显著增益的？  3. 在实验评估中，如何设计用于评估输出结果整体正确性、事实性和流畅性的指标？这些指标如何帮助全面评估SELF-RAG在各项下游任务中的表现？
+我们对我们的SELF-RAG和各种基线模型在一系列下游任务上进行评估，通过设计用于评估整体正确性、事实性和流畅性的指标来全面评估输出结果。在这些实验中，我们进行了零次演示评估，即提供描述任务但没有少量演示的指示(Wei等，2022; Sanh等，2022)。我们实验设置的详细信息，包括测试时的指示，可在附录B.1节中找到。
+
+封闭集任务包括两个数据集，即关于公共卫生的事实验证数据集(PubHealth; Zhang等，2023)和从科学考试中创建的多项选择推理数据集(ARC Challenge; Clark等，2018)。我们使用准确率作为评估指标，并在测试集上报告。我们对这两个数据集的目标类别的答案概率进行聚合处理(附录B.2节)。
+
+短文生成任务包括两个开放域问答(QA)数据集，PopQA (Mallen等，2023)和TriviaQA-unfiltered (Joshi等，2017)，其中系统需要回答关于事实知识的任意问题。对于PopQA，我们使用长尾子集，包括1,399个稀有实体查询，其每月维基百科页面访问量低于100。由于TriviaQA-unfiltered (open)测试集并不公开，我们遵循先前工作的验证和测试拆分(Min等，2019; Guu等，2020)，使用11,313个测试查询进行评估。我们根据模型生成中是否包含金标准答案来评估性能，而不是严格要求完全匹配，这是根据Mallen等(2023)和Schick等(2023)的方法。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/4 EXPERIMENTS/4.1 TASKS AND DATASETS/section/1/text
+1. 传记生成任务中，FactScore评估方法相较于其他指标的优势在哪里？   2. 长篇问答任务中，正确性指标(str-em)和引文精度与召回率(Gao等，2023)之间存在怎样的相互关系？   3. SELF-RAG框架在长篇生成任务中相对于LLMs和检索增强模型的优势主要体现在哪些方面？
+长篇生成任务包括传记生成任务(Min等，2023)和长篇问答任务ALCE-ASQA(Gao等，2023; Stelmakh等，2022)。我们使用FactScore(Min等，2023)来评估传记生成任务，对于ASQA，我们使用正确性的官方指标(str-em)、基于MAUVE的流畅性评估(Pillutla等，2021)，以及引文精度和召回率(Gao等，2023)。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/4 EXPERIMENTS/4.2 BASELINES/section
+本节介绍了在没有检索的基线模型下进行的评估，包括公开可用的预训练LLM，如$\mathrm{Llama2}_{7\mathrm{B},13\mathrm{B}}$和Alpaca7B,13B，以及私有数据训练的模型ChatGPT和Llama2-chat $^{13\mathrm{B}}$。与同时进行的工作$\mathrm{CoVE}_{65\mathrm{B}}$进行比较，引入了迭代提示工程以提高LLM生成的事实性。此外，还评估了使用检索增强的模型，包括标准的RAG基线模型和同时进行的方法，如SAIL和Toolformer。这些评估结果有助于揭示在LM生成过程中检索的作用，为后续介绍自反思检索增强生成(SELF-RAG)框架提供了重要的背景和对比基准。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/4 EXPERIMENTS/4.2 BASELINES/section/0/text
+1. 基于没有检索的基线模型进行评估时，如何比较公开可用的预训练LLM和私有数据训练的模型的性能表现？  2. 在评估过程中，如何利用迭代提示工程来提高LLM生成的事实性，与$\mathrm{CoVE}_{65\mathrm{B}}$的方法相比有何不同？  3. 在LM生成过程中，如何评估检索的作用，以及使用检索增强的模型（如RAG基线模型、SAIL和Toolformer）相较于没有检索的基线模型有何优势和劣势？
+没有检索的基线模型。我们评估了强大的公开可用的预训练LLM，$\mathrm{Llama2}_{7\mathrm{B},13\mathrm{B}}$ (Touvron等，2023)，经过指令调整的模型Alpaca7B,13B (Dubois等，2023)（我们基于Llama2进行复制）；以及使用私有数据训练和强化的模型ChatGPT (Ouyang等，2022)和Llama2-chat $^{13\mathrm{B}}$。对于经过指令调整的LMs，我们使用官方系统提示或训练期间使用的指令格式（如果公开可用）。我们还将我们的方法与同时进行的工作$\mathrm{CoVE}_{65\mathrm{B}}$ (Dhuliawala等，2023)进行比较，该工作引入了迭代提示工程以提高LLM生成的事实性。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/4 EXPERIMENTS/4.2 BASELINES/section/1/text
+1. 基于文中描述的评估结果，如何比较使用检索增强的基线模型（如RAG基线模型）与同时进行的方法（如SAIL和Toolformer）在LM生成中的效果和优劣势？  2. 在LM生成任务中，私有数据训练的具有检索增强的基线模型（如Ret-ChatGPT和Ret-Llama2-chat）相较于公开可用的预训练LLM（如$\mathrm{Llama2}_{7\mathrm{B},13\mathrm{B}}$和Alpaca7B,13B）表现如何？这种私有数据训练的模型是否在生成事实性内容方面有更大优势？  3. 如何解释同时进行的方法中的SAIL和Toolformer是如何利用检索文本段进行训练的？这种方法相较于基于检索的基线模型有哪些独特的优点或创新之处？
+基准模型与检索。我们评估了在测试时或训练过程中使用检索增强的模型。第一类包括标准的RAG基线模型，其中一个语言模型（Llama2、Alpaca）根据查询和前面的顶部检索文档生成输出，使用与我们系统相同的检索器。这还包括Llama2-FT，其中Llama2在我们使用的所有训练数据上进行微调，但不包括反射标记或检索段落。我们还报告了使用私有数据训练的具有检索增强的基线模型的结果：Ret-ChatGPT和Ret-Llama2-chat，它们采用上述相同的增强技术，以及perplexity.ai，一种基于InstructGPT的生产搜索系统。第二类包括与检索文本段一起训练的同时进行的方法，即SAIL（Luo等，2023）用于在Alpaca指令调整数据上对语言模型进行指导调整，插入指令之前的顶部检索文档，以及Toolformer（Schick等，2023）用于使用API调用（例如，维基百科API）预训练语言模型。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/4 EXPERIMENTS/4.3 EXPERIMENTAL SETTINGS/section
+在实验设置中，我们使用了包括Open-Instruct处理的数据和多个知识密集型数据集在内的15万个指令-输出对进行训练。生成器基础LM采用Llama2 7B和13B，基础评论家LM采用Llama2 7B。检索模型$\mathcal{R}$默认使用Contriever-MS MARCO，并最多检索十个文档。在推理设置中，我们设置了权重项$\boxed{\mathrm{IsREL}}$ \* IsSUP IsUsE的值，鼓励频繁检索，并使用vllm加速推理过程。在不同任务中，我们采用不同的检索阈值和文档来源，以确保公平比较。通过这些设置，我们的SELF-RAG框架在各种任务上表现出明显优势，特别在提高长篇生成的准确性和引用准确性方面取得显著增益。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/4 EXPERIMENTS/4.3 EXPERIMENTAL SETTINGS/section/0/text
+1. 训练数据的多样性如何有助于提升SELF-RAG框架在各种任务上的表现优势？  2. 采用Llama2 7B和13B作为生成器基础LM以及Llama2 7B作为基础评论家LM的优势在于何处？  3. 推理设置中设置的权重项$\boxed{\mathrm{IsREL}}$ \* IsSUP IsUsE如何影响了SELF-RAG框架在提高长篇生成准确性和引用准确性方面的显著增益？
+训练数据和设置。我们的训练数据包括多样的指令-输出对。具体来说，我们从Open-Instruct处理的数据（Wang等，2023年）和知识密集型数据集（Petroni等，2021年；Stelmakh等，2022年；Mihaylov等，2018年）中抽样实例。总共，我们使用了15万个指令-输出对。我们使用Llama2 7B和13B（Touvron等，2023年）作为我们的生成器基础LM，同时使用Llama2 7B作为我们的基础评论家LM。对于检索模型$\mathcal{R}$，我们默认使用现成的Contriever-MS MARCO（Izacard等，2022a），并为每个输入检索最多十个文档。更多训练细节请参见附录B.1节。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/4 EXPERIMENTS/4.3 EXPERIMENTAL SETTINGS/section/1/text
+1. 推理设置中的权重项$\boxed{\mathrm{IsREL}}$ \* IsSUP IsUsE如何影响频繁检索的过程和结果？  2. 在推理设置中，为什么要将检索阈值设置为0.2，以及如何确保在不同任务中进行公平比较？  3. 使用vllm加速推理过程的效果如何体现在SELF-RAG框架的性能提升上？
+推理设置。作为默认配置，我们将权重项$\boxed{\mathrm{IsREL}}$ \* IsSUP IsUsE的值分别设置为1.0、1.0和0.5。为了鼓励频繁检索，我们为大多数任务将检索阈值设置为0.2，并由于引文要求，将ALCE (Gao等，2023年)的检索阈值设置为0。我们使用vllm (Kwon等，2023年)加速推理过程。在每个片段级别，我们采用2的波束宽度。对于标记级生成，我们使用贪婪解码。默认情况下，我们使用Contriever-MS MARCO (Izacard等，2022a)的前五个文档；对于传记和开放领域问答，我们使用网络搜索引擎检索到的额外前五个文档，遵循Luo等 (2023年)；对于ASQA，我们使用GTR-XXL (Ni等，2022年)提供的前5篇文档，以便在所有基线中进行公平比较。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/4 EXPERIMENTS/4.3 EXPERIMENTAL SETTINGS/section/2/table
+1. 在实验中，为什么使用了Contriever-MS MARCO作为默认的检索模型，并设置了权重项$\boxed{\mathrm{IsREL}}$ \* IsSUP IsUsE的值？这些设置如何有助于提高SELF-RAG框架在各种任务上的性能表现？  2. 根据表2中的整体实验结果，哪项任务中专有模型表现最为突出，超越了所有非专有模型？这种优势主要体现在哪些方面，如事实性、正确性、流畅性、引文精度或召回率？
+表2：六项任务的整体实验结果。粗体数字表示非专有模型中的最佳性能，灰色粗体文本表示专有模型在超越所有非专有模型时的最佳性能。*表示同时或最近由并行工作报告的结果。-表示原始论文未报告或不适用的数字。模型按规模排序。FS,em, rg, mau, prec, rec分别表示FactScore（事实性）；str-em，rouge（正确性）；MAUVE（流畅性）；引文精度和召回率。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/5 RESULTS AND ANALYSIS/section
+在本章中，我们介绍了自反思检索增强生成(SELF-RAG)框架，旨在通过检索和自我反思来提高LM的质量和准确性。实验证明，SELF-RAG在多个任务上明显优于传统LLMs和检索增强模型，尤其在提高引文准确性和事实验证方面表现突出。消融研究结果显示，所有组件对框架性能至关重要。我们发现调整$\boxed{\mathrm{IsSUP}}$加权项和自适应阈值可以提高引文精度并影响整体性能和检索频率。此外，增加训练数据规模通常会提升模型性能。人类评估显示，SELF-RAG的输出合理且得到相关段落的支持，预测的反思标记与人类评估结果一致。总体而言，SELF-RAG框架在提高LM质量和准确性方面具有显著优势，并为模型性能优化和定制提供了重要见解。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/5 RESULTS AND ANALYSIS/5.1 MAIN RESULTS/section
+在主要结果部分，我们介绍了自反思检索增强生成(SELF-RAG)框架，通过检索和自我反思提高LM的质量和准确性。与无检索基线模型相比，SELF-RAG在各种任务中表现出显著性能优势，甚至胜过经过微调的LLMs和ChatGPT。在与具有检索的基线模型的比较中，SELF-RAG在多个任务中优于现有的RAG，特别在提高引文准确性方面表现突出。在ASQA任务中，SELF-RAG展现出比其他模型更高的引文准确性和召回率，甚至优于ChatGPT。此外，SELF-RAG还在事实准确性方面表现出色，尤其是在生成精确且较短的输出方面。实验结果表明，SELF-RAG的优势不仅来自训练数据，还彰显了其框架的有效性。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/5 RESULTS AND ANALYSIS/5.1 MAIN RESULTS/section/0/text
+1. SELF-RAG框架相较于无检索基线模型以及经过微调的LLMs和ChatGPT，在何种方面表现出明显的性能优势？    2. 在提高引文准确性方面，SELF-RAG相较于现有的RAG模型有何突出表现？   3. 除了训练数据之外，SELF-RAG框架的优势还体现在哪些方面？
+在没有检索的基线模型对比中。表2（顶部）展示了没有检索的基线模型。我们的自反思检索增强生成(SELF-RAG)（底部两行）在所有任务中表现出明显的性能优势，甚至在PubHealth、PopQA、传记生成和ASQA（Rouge和MAUVE）方面优于经过监督微调的LLMs和ChatGPT。我们的方法还明显优于一种采用复杂提示工程的并行方法；具体而言，在生物生成任务中，我们的7B和13B模型胜过了并行的CoVE (Dhuliawala等人，2023)，后者通过迭代提示Llama $2_{65\mathrm{B}}$来改进输出。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/5 RESULTS AND ANALYSIS/5.1 MAIN RESULTS/section/1/text
+1. SELF-RAG框架相较于具有检索的基线模型在提高引文准确性方面表现突出的原因是什么？  2. 在ASQA任务中，为什么SELF-RAG模型展现出比其他模型更高的引文准确性和召回率，甚至优于ChatGPT？  3. 在事实准确性方面，为什么较小的SELF-RAG有时会胜过13B，而在测试时仅通过检索增强的基线LM Llama2-$\cdot FT_{7B}$却落后于SELF-RAG？
+与具有检索的基线模型进行比较。正如表2（底部）所示，我们的自反思检索增强生成(SELF-RAG)在许多任务中也优于现有的RAG，在所有任务中获得了基于非专有语言模型的最佳性能。虽然我们的方法优于其他基线模型，在PopQA或Bio任务中，具有检索的强大指导调整语言模型（例如LLama2-chat、Alpaca）相对于它们的无检索基线获得了很大的提升。然而，我们发现这些基线模型在我们无法简单地复制或提取检索到的段落子字符串的任务中提供了有限的解决方案。在PubHealth和ARC-Challenge任务中，具有检索的基线模型并未显著提高性能，与它们的无检索对照组相比。我们还观察到，大多数具有检索的基线模型在提高引文准确性方面存在困难。在ASQA任务中，我们的模型显示出比所有模型（除ChatGPT外）更高的引文准确性和召回率。Gao等人(2023)发现，ChatGPT在这一特定任务中始终表现出优越的效能，超过了较小的语言模型。我们的SELF-RAG弥合了这一性能差距，甚至在引文准确性方面优于ChatGPT，该指标衡量模型生成的主张是否完全受引用证据支持。我们还发现，在事实准确性指标上，由于较小的SELF-RAG往往生成精确且较短的输出，SELF-RAG 7B有时胜过我们的13B。而在测试时仅通过检索增强的基线LM Llama2-$\cdot FT_{7B}$，它是在与SELF-RAG相同的指导-输出对上训练的基线LM，没有检索或自反思，却落后于SELF-RAG。这一结果表明SELF-RAG的收益不仅仅来自训练数据，也展示了SELF-RAG框架的有效性。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/5 RESULTS AND ANALYSIS/5.1 MAIN RESULTS/section/2/figure
+1. SELF-RAG框架中的关键组件消融研究结果如何？对模型性能有何影响？ 2. 在PubHealth和PopQA任务中，检索频率和归一化准确性之间存在怎样的关系？
+图3：SELF-RAG的分析：(a) 基于我们的7B模型，对SELF-RAG训练和推理的关键组件进行消融研究。 (b) 软权重对ASQA引用准确性和Mauve（流畅性）的影响。 (c) PubHealth和PopQA上的检索频率和归一化准确性。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/5 RESULTS AND ANALYSIS/5.2 ANALYSIS/section
+在本节中，我们进行了消融研究，评估了自反思检索增强生成(SELF-RAG)框架的关键因素。我们对No Retriever和No Critic等模型变体进行了评估，结果显示所有组件都发挥着重要作用。SELF-RAG相较于传统方法在各任务上表现更优，特别是在开放域QA、推理和事实验证任务上。我们还分析了推理时间自定义的影响，发现调整$\boxed{\mathrm{IsSUP}}$加权项可提高引文精度。此外，我们探讨了效率和准确性的权衡，发现自适应阈值对整体性能和检索频率具有显著影响。另外，我们研究了训练数据规模对模型性能的影响，结果显示增加数据规模通常会提升性能，尤其在PopQA和ASQA上。最后，我们进行了人类评估，发现SELF-RAG的输出通常合理且受到相关段落的支持，预测的反思标记与人类评估一致。这些研究结果表明，SELF-RAG框架在提高LM质量和准确性方面具有显著优势，并为模型性能优化和定制提供了重要见解。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/5 RESULTS AND ANALYSIS/5.2 ANALYSIS/section/0/text
+1. 调整$\boxed{\mathrm{IsSUP}}$加权项对引文精度的提高如何影响SELF-RAG框架的性能优势？ 2. 自适应阈值在整体性能和检索频率上的显著影响如何影响SELF-RAG框架的效率和准确性权衡？ 3. 训练数据规模对模型性能的影响在PopQA和ASQA数据集上的提升效果如何体现SELF-RAG框架的LM质量和准确性优势？
+消融研究。我们对我们的框架进行了一系列消融研究，以确定哪些因素起着关键作用。我们评估了两个与我们的模型训练方式不同的模型变体：No Retriever使用标准指示-输出对训练LM，而不使用检索到的段落；No Critic使用输入-输出对训练LM，始终使用顶部检索到的文档而不使用反思标记。这类似于SAIL（Luo等，2023），我们使用我们的指示-输出数据，而不是像SAIL中那样使用Alpaca数据集（Dubois等，2023）。我们还对我们的推理时算法进行了消融研究，包括No retrieval在推理过程中禁用检索；Hard constraints指示当Retrieve=Yes时检索的模型性能，而不是使用自适应阈值；Retrieve top I总是检索并仅使用顶部一个文档，类似于标准的RAG方法；Remove Issup指示在等式4中的批判引导束搜索过程中仅移除Issup分数的模型性能。在这个消融实验中，我们使用了$50\mathrm{k}$的训练实例大小，以更有效地探索训练变化。在本节的后文中，我们对训练数据规模的影响进行了分析。我们在三个数据集PopQA、PubHealth和ASQA上进行了消融研究。在ASQA上，我们在抽样的150个实例上评估模型，并排除涉及自适应或无检索过程的消融实验。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/5 RESULTS AND ANALYSIS/5.2 ANALYSIS/section/1/text
+1. 调整$\boxed{\mathrm{IsSUP}}$加权项如何影响引文精度？这种调整如何提高SELF-RAG框架在推理时间自定义中的性能表现？  2. 为什么使用顶部段落（Retrieve top 1）会导致PopQA和ASQA性能下降？相比传统RAG方法，SELF-RAG框架如何在生成结果选择方面体现出更高的有效性？  3. 训练数据规模对模型性能的影响如何？增加数据规模如何提升SELF-RAG在PopQA和ASQA等任务上的性能表现？
+我们在表3a中展示了消融实验结果。表格的上半部分显示了训练消融的结果，下半部分是推理消融的结果。我们发现所有组件都发挥着重要作用。我们还观察到SELF-RAG和No Retriever或Critic基准模型在各任务上存在较大的性能差距，表明使用这些模型训练LM在很大程度上促成了SELF-RAG性能提升。与传统的RAG方法一样，无论其相关性如何，使用顶部段落（Retrieve top 1）会导致PopQA和ASQA性能大幅下降，而在束搜索过程中移除Issup会损害ASQA上的性能。这表明SELF-RAG的有效性在于能够基于细粒度的多个标准精心选择生成结果，而不是简单地使用来自检索模型的所有顶部段落或仅仅依赖相关性分数。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/5 RESULTS AND ANALYSIS/5.2 ANALYSIS/section/2/text
+1. 推理时间自定义中的$\boxed{\mathrm{IsSUP}}$加权项如何影响模型在ASQA任务中的引文精度和MAUVE分数？ 2. SELF-RAG框架如何通过控制批评类型对最终生成抽样的影响程度，提高模型性能和定制性？ 3. 在调整$\boxed{\mathrm{IsSUP}}$加权项时，如何平衡模型生成结果是否受到证据支持与主张完整性之间的关系？
+推理时间自定义的影响。我们提出的框架的一个关键优势是，它使我们能够控制每种批评类型对最终生成抽样的影响程度。我们分析了在ASQA上对我们7B模型的顶部进行推理时间的不同参数权重对多个评估方面的影响。图3b显示了改变$\boxed{\mathrm{IsSUP}}$加权项对模型的影响，该项批评模型生成结果在文本段落中得到支持的程度。如图所示，增加权重会对模型的引文精度产生积极影响，因为这更加强调了模型生成结果是否受到证据支持。相反，较大的权重会导致较低的MAUVE分数：当生成变得更长、更流畅时，往往会出现更多主张未完全得到引文支持的情况，这与Liu等人（2023a）的研究结果一致。我们的框架允许从业者通过调整这些参数在测试时间选择和自定义模型的行为，而无需进行额外的训练。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/5 RESULTS AND ANALYSIS/5.2 ANALYSIS/section/3/figure
+1. 在训练数据规模对PopQA、PubHealth和ASQA的影响中，哪个任务受训练数据规模的影响最为显著？ 2. 人类评估发现SELF-RAG的输出通常合理且受到相关段落的支持，这如何有助于提高模型的性能和准确性？
+图 4：训练规模和人类分析：(a) (b) (c) 训练规模分析显示了训练数据规模对PopQA、PubHealth和ASQA（引文精度）的影响，分别。 (d) 对SELF-RAG输出以及反思标记的人类分析。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/5 RESULTS AND ANALYSIS/5.2 ANALYSIS/section/4/text
+1. 如何通过调整奖励标记的令牌概率来实现效率和准确性的权衡？这种自适应阈值对整体准确性和检索频率有何影响？  2. 在何种情况下，较大的阈值$\delta$会导致较少的检索，从而影响模型在PubHealth和PopQA数据集上的性能表现？  3. SELF-RAG框架中的自适应阈值如何影响模型在不同任务上的检索频率和性能表现？
+效率和准确性的权衡。利用我们的框架，从业者可以通过使用奖励标记的令牌概率来调整检索发生的频率。我们评估这种自适应阈值如何影响整体准确性和检索频率，并评估在PubHealth和PopQA上使用不同数量的阈值$\delta$（较大的$\delta$导致较少的检索）的性能。图3c显示，随着$\delta$的变化，模型在这两个数据集上的检索频率发生了显著变化。一方面，在PubHealth上减少检索导致的性能恶化较小，但在PopQA上较大。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/5 RESULTS AND ANALYSIS/5.2 ANALYSIS/section/5/text
+1. 如何训练数据规模影响SELF-RAG框架在不同任务上的性能表现？   2. SELF-RAG在PopQA和ASQA任务上的性能为何对训练数据规模的增加更为敏感？   3. 在研究中限制训练数据规模为150k的背景下，进一步扩大SELF-RAG的训练数据可能会带来怎样的性能改进？
+训练数据规模的影响。我们分析了数据规模如何影响模型的性能。具体来说，我们从原始的$150\mathrm{k}$个训练实例中随机抽取了5k、10k、$20\mathrm{k}$和$50\mathrm{k}$个实例，并在这些子集上对四个SELF-RAG $7\mathrm{B}$变体进行微调。然后，我们将这些模型在PopQA、PubHealth和ASQA（引文精度）上的性能与我们最终在完整$150\mathrm{k}$个实例上训练的SELFRAG进行比较。我们还评估了图4a、4b和4c展示的在不同数据量上训练的模型性能。在所有数据集中，增加数据规模通常呈现上升趋势，而在PopQA和ASQA上的改进显著更大，当将训练数据从$50\mathrm{k}$增加到$150\mathrm{k}$时，我们并未观察到$\mathrm{Llama2–FT_{7B}}$有如此显著的改进。这些结果还表明，进一步扩大SELF-RAG的训练数据可能会带来进一步的改进，尽管在这项工作中我们将训练数据规模限制为150k。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/5 RESULTS AND ANALYSIS/5.2 ANALYSIS/section/6/text
+1. 人类评估结果如何显示SELF-RAG在PopQA和Bio任务中的输出通常是合理的并受到相关段落的支持？这种一致性对于评估模型的可靠性有何重要意义？  2. 在人类评估中，为什么评估者对SELF-RAG预测的关于$\boxed{\mathrm{IsREL}}$和$\boxed{\mathrm{Issup}}$的反思标记是否与他们的观察相符感到满意？这种一致性如何体现了模型的有效性和准确性？  3. 人类评估结果如何揭示了SELF-RAG在提供合理且切题回答的同时，如何通过提供足够证据来验证答案的有效性，从而在短格式PopQA上取得较高的S&P得分？这种结果如何为SELF-RAG框架的LM质量和准确性优势提供了支持？
+人类评估。我们对SELF-RAG的输出以及预测的反思标记的可靠性进行了小规模的人类评估。具体来说，我们从PopQA和Bio的结果中随机抽取了50个样本。按照Menick等人(2022)的方法，人类标注者评估了$S\&P$，即指出模型输出是否合理（即，输出是否是对问题的合理且切题的回答，就像是在对话中进行）和是否支持（即，提供的证据是否足以验证答案的有效性）。对于S&P，我们不考虑SELF-RAG预测出的与支持无关或无支持的情况。然后，我们请标注者评估模型预测的关于$\boxed{\mathrm{IsREL}}$和[1ssup的反思标记是否与他们的观察相符（例如，完全支持的输出是否得到引文证据的支持）。人类标注者发现SELF-RAG的答案通常是合理的，并且受到相关段落的支持，短格式PopQA上的S&P得分较高，这与Menick等人(2022)的研究结果一致。人类标注者还发现IsREL和Issup反思标记的预测大多与他们的评估一致。附录表6展示了一些经过标注的示例及评估解释。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/6 CONCLUSION/section
+本章介绍了自反思检索增强生成(SELF-RAG)框架，旨在提高大型语言模型(LLM)的质量和事实性。SELF-RAG训练LM学习检索、生成和评论文本段落，使用特殊的反思标记来定制LM行为。在六个任务上的综合评估显示，SELF-RAG相对于其他LLMs和传统检索增强生成方法在各项任务中表现显著优异。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/6 CONCLUSION/section/0/text
+1. SELF-RAG框架如何通过自反思和按需检索来提高大型语言模型的质量和事实性？  2. 在六个任务的综合评估中，SELF-RAG相对于其他LLMs和传统检索增强生成方法表现出哪些显著的优势？  3. SELF-RAG是如何利用特殊的反思标记来训练LM，并在测试阶段实现LM行为的定制的？
+本文介绍了自反思检索增强生成(SELF-RAG)，这是一个通过按需检索和自我反思来提高LLM质量和事实性的新框架。SELF-RAG训练一个LM学习检索、生成和评论文本段落及其自身生成，通过从原始词汇表和新添加的特殊标记（称为反思标记）预测下一个标记。SELF-RAG还通过利用反思标记，在测试阶段实现LM行为的定制。我们在六个任务上进行了全面评估，使用多种指标表明SELF-RAG在各项任务中明显优于参数更多的LLMs或传统的检索增强生成方法。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/ETHICAL CONCERNS/section
+本章旨在提高LLM输出的事实性，以解决现实世界中因缺乏事实性而导致的问题。虽然SELF-RAG在性能、事实性和引用准确性方面表现出显著改进，但仍存在可能生成未完全得到引用支持的输出的风险。通过自我反思和细粒度的归因，我们希望帮助用户验证模型输出中的事实错误，进一步提高LM的质量和准确性。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/ETHICAL CONCERNS/section/0/text
+1. 如何通过自我反思和细粒度的归因来帮助用户验证模型输出中的事实错误，从而提高LM的质量和准确性？  2. 在提高LLM输出事实性的过程中，如何平衡性能、事实性和引用准确性之间的关系，以避免生成未完全得到引用支持的输出？  3. 当缺乏事实性导致现实世界问题时，SELF-RAG在解决误传传播和提供不正确建议方面的表现如何？
+本工作旨在提高LLM输出的事实性，缺乏事实性仍然导致许多现实世界问题（例如，误传的传播和提供不正确和危险建议）。虽然我们的方法在性能、事实性和引用准确性方面显示出显著改进，但仍可能生成未完全得到引用支持的输出。我们希望明确的自我反思和细粒度的归因可以帮助用户验证模型输出中的事实错误。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/ACKNOWLEDGMENTS/section
+在致谢部分，我们感谢Sewon Min、Scott Wen-tau Yih、Sean Weleck和Kawin Ethayarajh对早期讨论的贡献，以及Sewon Min、Joongwon（Daniel）Kim和Sandy Kaplan对论文的宝贵反馈。特别感谢Tianyu Gao和Weijia Shi在评估工作中的支持，以及Akari Asai获得IBM奖学金的支持。我们也感谢Stability AI提供计算资源用于LMs的训练和评估，以及Microsoft Accelerate Foundation Models Research Program提供访问OpenAI APIs的机会。最后，我们致谢DARPA MCS计划、NIWC Pacific（N66001-19-2-4031）、NSF IIS-2044660以及AI2的资助支持。
+
+# SELF-RAG: LEARNING TO RETRIEVE, GENERATE,AND CRITIQUE THROUGH SELF-REFLECTION/ACKNOWLEDGMENTS/section/0/text
+1. 这段致谢部分提到的各个个人和组织对于论文的贡献和支持各有何特点和重要性？ 2. 论文中提到的不同类型的支持（如讨论、反馈、奖学金、计算资源、访问机会等）对于研究工作的发展和成果有何影响？ 3. 这段文字中提到的各种支持和资助来源如何共同促进了研究工作的进展和成果？
+我们感谢Sewon Min、Scott Wen-tau Yih、Sean Weleck和Kawin Ethayarajh在此工作的早期阶段进行了富有成果的讨论。我们感谢Sewon Min、Joongwon（Daniel）Kim和Sandy Kaplan对论文提供了宝贵的反馈，感谢Tianyu Gao和Weijia Shi在评估工作中的帮助。Akari Asai得到IBM奖学金的支持。我们感谢Stability AI提供计算资源来训练和评估本工作中的LMs，以及Microsoft Accelerate Foundation Models Research Program提供访问OpenAI APIs的机会。这项工作部分资助来自DARPA MCS计划，通过NIWC Pacific（N66001-19-2-4031）、NSF IIS-2044660以及AI2的赞助。
+

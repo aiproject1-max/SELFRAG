@@ -1,7 +1,7 @@
-<script type="text/javascript" async
-  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
-</script>
-
+When \( a \ne 0 \), there are two solutions to \( ax^2 + bx + c = 0 \) given by:
+$$
+x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
+$$
 
 # 自我反思：通过学习检索、生成和批判
 
